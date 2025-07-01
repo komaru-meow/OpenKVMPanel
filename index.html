@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KVM-i7 - Control Panel</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500&display=swap');
+        :root{--primary-glow:#7DF9FF;--secondary-accent:#A6D8E8;--dark-bg:#081024;--card-bg:rgba(200,220,240,.1);--border-color:rgba(173,216,230,.2);--text-color:#EAEAEA;--text-muted:#9EB8D4;--success-color: #23a55a; --danger-color: #f23f43; --warning-color: #f9a839;--font-mono: 'JetBrains Mono', 'Courier New', monospace;}
+        *{margin:0;padding:0;box-sizing:border-box}
+        html{scroll-behavior:smooth}
+        body{font-family:'Inter',sans-serif;background-color:var(--dark-bg);color:var(--text-color);overflow-x:hidden;background-image:radial-gradient(at 20% 20%,hsla(185,100%,74%,.15) 0,transparent 50%),radial-gradient(at 80% 80%,hsla(210,100%,85%,.1) 0,transparent 50%);background-attachment:fixed}
+        #glow-cursor{position:fixed;width:500px;height:500px;background:radial-gradient(circle,hsla(185,100%,74%,.15) 0,hsla(185,100%,74%,0) 60%);border-radius:50%;pointer-events:none;transform:translate(-50%,-50%);transition:all .1s ease-out;z-index:-1}
+        @keyframes fadeInUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+        header{position:fixed;top:20px;left:50%;transform:translateX(-50%);width:95%;max-width:1200px;display:flex;justify-content:space-between;align-items:center;padding:12px 25px;background:rgba(10,17,38,.7);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--border-color);border-radius:50px;z-index:1000;}
+        .logo{display:flex;align-items:center;gap:12px;text-decoration:none}
+        .logo img{height:32px;}
+        .logo .logo-text{font-size:1.4rem;font-weight:700;background:linear-gradient(90deg,var(--primary-glow),var(--secondary-accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .header-right{display:flex;align-items:center;gap:20px}
+        .section{padding:120px 20px 40px;max-width:1200px;margin:0 auto;}
+        .panel-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 25px; align-items: stretch; }
+        .small-tiles-wrapper { display: flex; flex-direction: column; gap: 25px; }
+        @media (max-width: 992px) { .panel-grid { grid-template-columns: 1fr; } }
+        .panel-card { background:var(--card-bg); padding: 30px; border-radius:16px; border:1px solid var(--border-color); backdrop-filter:blur(10px); display:flex; flex-direction:column; gap: 20px;}
+        .panel-card-header { display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 10px; }
+        .panel-card-header h3 { font-size: 1.25rem; margin: 0; }
+        .panel-card-header svg { width: 24px; height: 24px; color: var(--secondary-accent); }
+        .control-btn { display: flex; align-items: center; justify-content: center; gap: 8px; text-align:center; background:linear-gradient(90deg,var(--primary-glow),var(--secondary-accent));color:#081024;padding:12px;border-radius:8px;text-decoration:none;font-weight:700;transition:all .2s ease; border: none; cursor: pointer; width: 100%; font-family: 'Inter', sans-serif; font-size: 1rem; }
+        .control-btn:hover:not(:disabled) { transform:scale(1.02); box-shadow:0 0 20px hsla(185,100%,74%,.4); }
+        .control-btn:disabled { cursor: not-allowed; filter: grayscale(80%); opacity: 0.6; }
+        .control-btn.secondary { background: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-color); }
+        .control-btn.secondary:hover:not(:disabled) { background: rgba(200,220,240,.2); border-color: var(--secondary-accent); box-shadow: none; }
+        .control-btn.danger { background: linear-gradient(90deg, #e53e3e, #f56565); color: white; }
+        .control-btn.danger:hover:not(:disabled) { box-shadow:0 0 20px rgba(242,63,67,0.4); }
+        #login-view { text-align: center; max-width: 500px; margin: 0 auto; padding-top: 15vh; }
+        #login-view .logo { justify-content: center; margin-bottom: 25px; }
+        #login-view .logo img { height: 48px; }
+        #login-view .logo .logo-text { font-size: 2rem; }
+        #token-input, select, input[type="text"] { width: 100%; padding: 15px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-color); font-size: 1rem; }
+        #token-input { font-family: var(--font-mono); }
+        #token-input:focus, select:focus, input[type="text"]:focus { outline: none; border-color: var(--primary-glow); box-shadow: 0 0 15px hsla(185,100%,74%,.3); }
+        #login-message { margin-top: 15px; color: #e53e3e; height: 20px; }
+        #panel-view { display: none; animation: fadeInUp .8s ease-out forwards; }
+        .status-display { display: flex; align-items: center; gap: 15px; padding-bottom: 15px; }
+        .status-dot { width: 18px; height: 18px; border-radius: 50%; }
+        .status-text { font-size: 1.5rem; font-weight: 700; }
+        .status-dot.online { background-color: var(--success-color); box-shadow:0 0 8px var(--success-color); }
+        .status-dot.offline { background-color: var(--danger-color); box-shadow:0 0 8px var(--danger-color); }
+        .status-dot.unknown { background-color: var(--warning-color); box-shadow:0 0 8px var(--warning-color); }
+        .resource-list, .info-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 15px; }
+        .resource-item .label, .info-list li { display: flex; justify-content: space-between; margin-bottom: 8px; font-weight: 500; }
+        .resource-item .label .usage-text, .info-list li span:first-child { color: var(--text-muted); font-size: 0.9rem; }
+        .info-list li span:last-child { font-weight: 700; color: var(--text-color); }
+        .progress-bar-container { width: 100%; height: 8px; background-color: rgba(0,0,0,0.3); border-radius: 4px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background-color: var(--primary-glow); border-radius: 4px; width: 0%; transition: width 0.5s ease-out; }
+        .danger-zone { border-color: #e53e3e; }
+        .danger-zone .panel-card-header svg, .danger-zone .panel-card-header h3 { color: #e53e3e; }
+        .danger-zone p { color: var(--text-muted); font-size: 0.9rem; line-height: 1.6; }
+        .divider { border-top: 1px solid var(--border-color); margin: 0; }
+        #toast-container { position: fixed; top: 90px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
+        .toast { padding: 15px 20px; border-radius: 8px; color: white; font-weight: 700; background-color: rgba(10, 17, 38, 0.7); backdrop-filter: blur(10px); border: 1px solid var(--border-color); animation: slideIn 0.3s ease forwards; opacity: 0; display: flex; align-items: center; gap: 10px; }
+        .toast.success { border-left: 4px solid var(--success-color); }
+        .toast.error { border-left: 4px solid var(--danger-color); }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes slideOut { to { transform: translateX(120%); opacity: 0; } }
+        #modal-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(8, 16, 36, 0.7); display: none; justify-content: center; align-items: center; backdrop-filter: blur(5px); z-index: 10000; animation: fadeIn 0.3s ease; }
+        #modal-content { background: #0c142b; padding: 30px; border-radius: 16px; border: 1px solid var(--border-color); width: 90%; max-width: 500px; position: relative; animation: scaleUp 0.3s ease; box-shadow: 0 10px 40px rgba(8, 16, 36, 0.5); }
+        #modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 20px;}
+        #modal-title { font-size: 1.25rem; }
+        #modal-close-btn { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; line-height: 1; transition: color 0.2s ease; }
+        #modal-close-btn:hover { color: var(--text-color); }
+        #modal-body pre { font-family: var(--font-mono); line-height: 1.6; background-color: #0F172A; padding: 15px; border-radius: 8px; white-space: pre-wrap; word-break: break-all; user-select: text; border: 1px solid var(--border-color); }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes scaleUp { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .security-warning { margin-top: 40px; padding: 20px; border-radius: 8px; border: 1px solid var(--warning-color); background-color: rgba(249, 168, 57, 0.1); text-align: left; font-size: 0.9rem; line-height: 1.6; }
+        .security-warning strong { color: var(--warning-color); }
+        .security-warning a { color: var(--primary-glow); font-weight: 700; text-decoration: none; }
+        .security-warning a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div id="glow-cursor"></div>
+    <div id="toast-container"></div>
+    <div id="modal-container">
+        <div id="modal-content">
+            <div id="modal-header">
+                <h3 id="modal-title">SSH Connection Info (JSON)</h3>
+                <button id="modal-close-btn">×</button>
+            </div>
+            <div id="modal-body">
+                <pre><code id="ssh-info-output">Loading...</code></pre>
+            </div>
+        </div>
+    </div>
+    <header>
+        <a href="#" class="logo">
+            <img src="https://mirrors.kvm-i7.host/logo.png" alt="KVM-i7 Logo">
+            <span class="logo-text">Panel</span>
+        </a>
+        <div class="header-right">
+            <span id="auth-info" style="color: var(--text-muted); display: none;"></span>
+            <button id="logout-btn" class="control-btn danger" style="display: none; width: auto; padding: 10px 20px;">Log Out</button>
+        </div>
+    </header>
+    <main>
+        <section id="login-view">
+            <a href="#" class="logo">
+                <img src="https://mirrors.kvm-i7.host/logo.png" alt="KVM-i7 Logo">
+                <span class="logo-text">Control Panel</span>
+            </a>
+            <p style="color:var(--text-muted); max-width: 400px; margin: 15px auto 30px;">Enter your API token to manage your VPS.</p>
+            <input type="password" id="token-input" placeholder="Paste your token here...">
+            <button id="auth-btn" class="control-btn" style="margin-top: 15px;">Authenticate</button>
+            <p id="login-message"> </p>
+            <div class="security-warning">
+                <strong>Open Source Security Notice</strong><br>
+                This panel is based on the open-source <a href="https://github.com/katy-the-kat/OpenKVMPanel" target="_blank" rel="noopener noreferrer">OpenKVMPanel</a> project. <strong>Use this instance at your own risk.</strong>
+                <br><br>
+                For your security, only enter your API token on the official instance at <a href="https://panel.kvm-i7.host" target="_blank" rel="noopener noreferrer">panel.kvm-i7.host</a> or on community-verified instances listed at <a href="https://kvm-i7.host/trusted" target="_blank" rel="noopener noreferrer">kvm-i7.host/trusted</a>.
+            </div>
+        </section>
+        <section id="panel-view" class="section">
+            <div class="panel-grid">
+                <div class="panel-card">
+                    <div id="status-display" class="status-display">
+                        <div id="status-dot" class="status-dot"></div>
+                        <span id="status-text" class="status-text">Unknown</span>
+                    </div>
+                    <div class="resource-list">
+                        <div class="resource-item">
+                            <div class="label"><span>CPU</span><span id="cpu-usage-text" class="usage-text">0%</span></div>
+                            <div class="progress-bar-container"><div id="cpu-progress" class="progress-bar-fill"></div></div>
+                        </div>
+                        <div class="resource-item">
+                            <div class="label"><span>RAM</span><span id="ram-usage-text" class="usage-text">0 MB / 0 MB</span></div>
+                            <div class="progress-bar-container"><div id="ram-progress" class="progress-bar-fill"></div></div>
+                        </div>
+                        <div class="resource-item">
+                            <div class="label"><span>Disk</span><span id="disk-usage-text" class="usage-text">0 GB / 0 GB</span></div>
+                            <div class="progress-bar-container"><div id="disk-progress" class="progress-bar-fill"></div></div>
+                        </div>
+                    </div>
+                    <div class="divider"></div>
+                    <ul id="hardware-info-list" class="info-list"></ul>
+                </div>
+                <div class="small-tiles-wrapper">
+                    <div class="panel-card">
+                        <div class="panel-card-header">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M5.636 5.636a9 9 0 1012.728 0M12 3v9" /></svg>
+                            <h3>Power & Connectivity</h3>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <button id="start-btn" class="control-btn">Start</button>
+                            <button id="stop-btn" class="control-btn">Stop</button>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                             <button id="ssh-info-btn" class="control-btn secondary">SSH Info</button>
+                             <button id="refresh-stats-btn" class="control-btn secondary">Refresh</button>
+                        </div>
+                    </div>
+                    <div class="panel-card danger-zone">
+                        <div class="panel-card-header">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126z" /></svg>
+                            <h3>Danger Zone</h3>
+                        </div>
+                        <p>Reinstalling your VPS will permanently erase all data.</p>
+                        <select id="os-select"></select>
+                        <button id="reinstall-btn" class="control-btn danger">Reinstall OS</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const glowCursor = document.getElementById('glow-cursor');
+            if (window.matchMedia("(min-width: 769px)").matches) {
+                document.addEventListener('pointermove', (e) => {
+                    glowCursor.style.left = `${e.clientX}px`;
+                    glowCursor.style.top = `${e.clientY}px`;
+                });
+            }
+            const API_BASE_URL = 'https://payment-server.kvm-i7.host/api';
+            let apiToken = null;
+            let statusPoller = null;
+            let vpsState = 'unknown';
+            const elements = {
+                loginView: document.getElementById('login-view'),
+                panelView: document.getElementById('panel-view'),
+                tokenInput: document.getElementById('token-input'),
+                authBtn: document.getElementById('auth-btn'),
+                logoutBtn: document.getElementById('logout-btn'),
+                loginMessage: document.getElementById('login-message'),
+                authInfo: document.getElementById('auth-info'),
+                statusDot: document.getElementById('status-dot'),
+                statusText: document.getElementById('status-text'),
+                cpuProgress: document.getElementById('cpu-progress'),
+                cpuUsageText: document.getElementById('cpu-usage-text'),
+                ramProgress: document.getElementById('ram-progress'),
+                ramUsageText: document.getElementById('ram-usage-text'),
+                diskProgress: document.getElementById('disk-progress'),
+                diskUsageText: document.getElementById('disk-usage-text'),
+                hardwareInfoList: document.getElementById('hardware-info-list'),
+                refreshStatsBtn: document.getElementById('refresh-stats-btn'),
+                startBtn: document.getElementById('start-btn'),
+                stopBtn: document.getElementById('stop-btn'),
+                sshInfoBtn: document.getElementById('ssh-info-btn'),
+                osSelect: document.getElementById('os-select'),
+                reinstallBtn: document.getElementById('reinstall-btn'),
+                toastContainer: document.getElementById('toast-container'),
+                modalContainer: document.getElementById('modal-container'),
+                modalCloseBtn: document.getElementById('modal-close-btn'),
+                sshInfoOutput: document.getElementById('ssh-info-output')
+            };
+            const showToast = (message, type = 'success') => {
+                const toast = document.createElement('div');
+                toast.className = `toast ${type}`;
+                toast.textContent = message;
+                elements.toastContainer.appendChild(toast);
+                setTimeout(() => {
+                    toast.style.animation = 'slideOut 0.3s ease forwards';
+                    toast.addEventListener('animationend', () => toast.remove());
+                }, 4000);
+            };
+            const callApi = async (endpoint, options = {}) => {
+                const { method = 'GET', body = null } = options;
+                try {
+                    const headers = { 'Authorization': `Bearer ${apiToken}` };
+                    const fetchOptions = { method, headers, cache: 'no-cache' };
+                    if (body) {
+                        headers['Content-Type'] = 'application/json';
+                        fetchOptions.body = JSON.stringify(body);
+                    }
+                    const response = await fetch(`${API_BASE_URL}${endpoint}`, fetchOptions);
+                    const responseData = await response.json().catch(() => ({}));
+                    if (!response.ok) {
+                        throw new Error(responseData.error || `Request failed: ${response.status}`);
+                    }
+                    return responseData;
+                } catch (error) {
+                    showToast(error.message, 'error');
+                    if (error.message.includes('token')) handleLogout();
+                    return null;
+                }
+            };
+            const updateUIwithState = () => {
+                const statusClass = vpsState === 'running' ? 'online' : vpsState === 'stopped' ? 'offline' : 'unknown';
+                const statusText = vpsState.charAt(0).toUpperCase() + vpsState.slice(1);
+                elements.statusDot.className = `status-dot ${statusClass}`;
+                elements.statusText.textContent = statusText;
+                elements.startBtn.disabled = vpsState !== 'stopped';
+                elements.stopBtn.disabled = vpsState !== 'running';
+            };
+            const pollStatus = async () => {
+                const data = await callApi('/status');
+                if (data && data.data) {
+                    const newStatus = data.data.replace('status: ', '').trim();
+                    if (newStatus !== vpsState) {
+                        vpsState = newStatus;
+                        updateUIwithState();
+                    }
+                }
+            };
+            const updateStats = async (isInitial = false) => {
+                if (!isInitial) elements.refreshStatsBtn.disabled = true;
+                const [hardwareData, usageData, statusData] = await Promise.all([
+                    callApi('/fetch-hardware'),
+                    callApi('/fetch-usage'),
+                    callApi('/status')
+                ]);
+                if (statusData && statusData.data) {
+                    vpsState = statusData.data.replace('status: ', '').trim();
+                }
+                if (usageData && usageData.data) {
+                     const { cpu, ram, storage } = usageData.data;
+                     const cpuPercent = parseFloat(cpu) || 0;
+                     const ramPercent = parseFloat(ram.split('/')[0]) || 0;
+                     const diskPercent = parseFloat(storage.split('/')[0]) || 0;
+                     elements.cpuProgress.style.width = `${cpuPercent}%`;
+                     elements.cpuUsageText.textContent = cpu;
+                     elements.ramProgress.style.width = `${ramPercent}%`;
+                     elements.ramUsageText.textContent = ram.split('/')[1]?.trim() + ' / ' + ram.split('/')[2]?.trim();
+                     elements.diskProgress.style.width = `${diskPercent}%`;
+                     elements.diskUsageText.textContent = storage.split('/')[1]?.trim() + ' / ' + storage.split('/')[2]?.trim();
+                }
+                 if (hardwareData && hardwareData.data) {
+                    const { cores, memory_mb, disk_gb, storage_type } = hardwareData.data;
+                    elements.hardwareInfoList.innerHTML = `
+                        <li><span>CPU Cores</span><span>${cores}</span></li>
+                        <li><span>Memory</span><span>${memory_mb} MB</span></li>
+                        <li><span>Storage Type</span><span>${storage_type.toUpperCase()}</span></li>
+                        <li><span>Total Disk</span><span>${disk_gb} GB</span></li>
+                    `;
+                }
+                updateUIwithState();
+                if (!isInitial) elements.refreshStatsBtn.disabled = false;
+            };
+            const populateOsOptions = async () => {
+                elements.osSelect.innerHTML = '<option>Loading OS...</option>';
+                const options = await callApi('/reinstall/options');
+                if (options && Array.isArray(options)) {
+                    elements.osSelect.innerHTML = options.map(os => `<option value="${os.template}">${os.name}</option>`).join('');
+                } else {
+                    elements.osSelect.innerHTML = '<option>Error loading OS list</option>';
+                }
+            };
+            const handleLogin = async () => {
+                elements.authBtn.disabled = true;
+                elements.authBtn.textContent = 'Verifying...';
+                const token = elements.tokenInput.value.trim();
+                if (!token) {
+                    showToast('Token cannot be empty.', 'error');
+                    elements.authBtn.disabled = false;
+                    elements.authBtn.textContent = 'Authenticate';
+                    return;
+                }
+                apiToken = token;
+                const testCall = await callApi('/status');
+                if (testCall) {
+                    elements.loginView.style.display = 'none';
+                    elements.panelView.style.display = 'block';
+                    elements.logoutBtn.style.display = 'flex';
+                    elements.authInfo.style.display = 'inline';
+                    elements.authInfo.textContent = `Token: ...${token.slice(-4)}`;
+                    showToast('Authentication successful!', 'success');
+                    await Promise.all([updateStats(true), populateOsOptions()]);
+                    statusPoller = setInterval(pollStatus, 20000);
+                } else {
+                    apiToken = null;
+                    elements.loginMessage.textContent = 'Authentication failed. Invalid token.';
+                }
+                elements.authBtn.disabled = false;
+                elements.authBtn.textContent = 'Authenticate';
+            };
+            const handleLogout = () => {
+                clearInterval(statusPoller);
+                statusPoller = null;
+                apiToken = null;
+                elements.tokenInput.value = '';
+                elements.panelView.style.display = 'none';
+                elements.logoutBtn.style.display = 'none';
+                elements.authInfo.style.display = 'none';
+                elements.loginView.style.display = 'block';
+                showToast('You have been logged out.', 'success');
+            };
+            const handlePowerAction = async (endpoint, button, successMsg) => {
+                button.disabled = true;
+                const result = await callApi(endpoint);
+                if (result) {
+                    showToast(successMsg, 'success');
+                    await pollStatus();
+                    await updateStats();
+                }
+            };
+            const showSshModal = async () => {
+                elements.modalContainer.style.display = 'flex';
+                elements.sshInfoOutput.textContent = 'Fetching SSH info...';
+                const sshData = await callApi('/sshinfo');
+                if (sshData) {
+                    elements.sshInfoOutput.textContent = JSON.stringify(sshData, null, 2);
+                } else {
+                    elements.sshInfoOutput.textContent = 'Failed to fetch SSH information.';
+                }
+            };
+            const hideSshModal = () => {
+                elements.modalContainer.style.display = 'none';
+            };
+            elements.authBtn.addEventListener('click', handleLogin);
+            elements.logoutBtn.addEventListener('click', handleLogout);
+            elements.refreshStatsBtn.addEventListener('click', () => updateStats());
+            elements.startBtn.addEventListener('click', (e) => handlePowerAction('/start', e.target, 'Start command issued!'));
+            elements.stopBtn.addEventListener('click', (e) => handlePowerAction('/stop', e.target, 'Stop command issued!'));
+            elements.sshInfoBtn.addEventListener('click', showSshModal);
+            elements.modalCloseBtn.addEventListener('click', hideSshModal);
+            elements.modalContainer.addEventListener('click', (e) => {
+                if (e.target === elements.modalContainer) {
+                    hideSshModal();
+                }
+            });
+            elements.reinstallBtn.addEventListener('click', async (e) => {
+                const os = elements.osSelect.value;
+                if (!confirm(`ARE YOU SURE?\n\nThis will ERASE ALL DATA on the VPS and reinstall it with the selected OS. This is IRREVERSIBLE.`)) return;
+                e.target.disabled = true;
+                const result = await callApi('/reinstall', { method: 'POST', body: { os_template: os } });
+                if (result) {
+                    showToast('Reinstall process initiated! Logging you out.', 'success');
+                    setTimeout(handleLogout, 2000);
+                } else {
+                   e.target.disabled = false;
+                }
+            });
+        });
+    </script>
+</body>
+</html>
