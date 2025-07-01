@@ -28,7 +28,6 @@ Below is a image of what the panel looks like.
 *   **Server Control:** Start, Stop, and Reinstall your VPS.
 *   **Live Status:** View the current status (running, stopped) of your server.
 *   **Resource Monitoring:** See real-time CPU, RAM, and disk usage.
-*   **Remote Terminal:** Execute commands directly from your browser and see the output.
 *   **Secure & Client-Side:** Your API token is **never** sent to our servers or stored anywhere. It is only kept in your browser's memory for the duration of your session and is sent directly to the API endpoint.
 
 ## How to Use
