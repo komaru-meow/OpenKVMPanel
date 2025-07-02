@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://discord.gg/t3vps"><img src="https://img.shields.io/badge/Join_Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white"></a>
+  <a href="https://discord.gg/compute"><img src="https://img.shields.io/badge/Join_Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white"></a>
   <a href="https://github.com/KVM-i7/OpenKVMPanel/issues"><img src="https://img.shields.io/badge/Report_an_Issue-orange?style=for-the-badge&logo=github"></a>
 </p>
 
